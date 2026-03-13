@@ -1,0 +1,28 @@
+# Devenv
+.devenv*
+devenv.local.nix
+devenv.local.yaml
+
+# direnv
+.direnv
+.android/
+
+# pre-commit
+.pre-commit-config.yaml
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.packages
+build/
+
+# Android / Gradle
+.gradle/
+local.properties
