@@ -12,7 +12,7 @@ You own the FastAPI backend in `api/**`.
 - Maintain SQLite-backed todo CRUD.
 - Preserve stable HTTP responses for the Flutter client.
 - Add or update tests whenever the API contract or persistence behavior changes.
-- Run `api-test` after meaningful changes.
+- Run `cd api && uv sync && uv run pytest` after meaningful changes.
 
 ## Do not
 - Do not edit `app/**`.
@@ -33,5 +33,5 @@ Todo payload:
 ```
 
 ## Validation
-- `api-test`
-- `api-run`
+- `cd api && uv sync && uv run pytest`
+- `cd api && uv run fastapi dev app/main.py --host 0.0.0.0 --port 8000`

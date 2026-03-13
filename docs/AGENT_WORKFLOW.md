@@ -38,6 +38,13 @@ Use the supervisor for:
 - `agent-frontend-brief`
 - `agent-backend-brief`
 - `agent-workflow`
-- `app-test`
-- `api-test`
-- `test-all`
+- `cd app && flutter test`
+- `cd api && uv sync && uv run pytest`
+- `devenv test`
+- `devenv up`
+
+## Validation flow
+
+- Use `cd app && flutter test` for frontend-only changes.
+- Use `cd api && uv sync && uv run pytest` for backend-only changes.
+- Use `devenv test` as the final combined verification after the affected direct suite checks pass.

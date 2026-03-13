@@ -12,7 +12,7 @@ You own the Flutter client in `app/**`.
 - Keep API calls behind the repository layer.
 - Prefer updating `app/lib/http_todo_repository.dart`, `app/lib/todo_repository.dart`, and view code instead of scattering raw HTTP requests.
 - Keep widget tests focused on user-visible behavior.
-- Run `app-test` after meaningful changes.
+- Run `cd app && flutter test` after meaningful changes.
 
 ## Do not
 - Do not edit `api/**`.
@@ -33,5 +33,5 @@ Todo payload:
 ```
 
 ## Validation
-- `app-test`
-- `app-run-linux`
+- `cd app && flutter test`
+- `cd app && flutter run -d linux`
