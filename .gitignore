@@ -16,6 +16,8 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .coverage
+*.db
+*.sqlite3
 
 # Flutter / Dart
 .dart_tool/
