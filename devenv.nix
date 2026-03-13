@@ -79,6 +79,16 @@ in
     flutter run -d android
   '';
 
+  scripts."app-test".exec = ''
+    if [ ! -f "$APP_DIR/pubspec.yaml" ]; then
+      echo "Missing Flutter project at $APP_DIR. Run flutter-create first." >&2
+      exit 1
+    fi
+
+    cd "$APP_DIR"
+    flutter test
+  '';
+
   scripts."api-sync".exec = ''
     if [ ! -f "$API_DIR/pyproject.toml" ]; then
       echo "Missing FastAPI project at $API_DIR. Create pyproject.toml first." >&2
@@ -97,6 +107,22 @@ in
 
     cd "$API_DIR"
     uv run fastapi dev app/main.py --host 0.0.0.0 --port 8000
+  '';
+
+  scripts."api-test".exec = ''
+    if [ ! -f "$API_DIR/pyproject.toml" ]; then
+      echo "Missing FastAPI project at $API_DIR. Create pyproject.toml first." >&2
+      exit 1
+    fi
+
+    cd "$API_DIR"
+    uv sync
+    uv run pytest
+  '';
+
+  scripts."test-all".exec = ''
+    app-test
+    api-test
   '';
 
   processes.api.exec = ''
@@ -119,8 +145,11 @@ in
     echo "  flutter-create"
     echo "  app-run-linux"
     echo "  app-run-android"
+    echo "  app-test"
     echo "  api-sync"
     echo "  api-run"
+    echo "  api-test"
+    echo "  test-all"
     echo "  devenv up api"
   '';
 

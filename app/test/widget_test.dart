@@ -11,19 +11,27 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:app/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
+  testWidgets('renders the home page title and counter text', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(const MyApp());
 
-    // Verify that our counter starts at 0.
+    expect(find.text('Flutter Demo Home Page'), findsOneWidget);
+    expect(
+      find.text('You have pushed the button this many times:'),
+      findsOneWidget,
+    );
     expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  });
 
-    // Tap the '+' icon and trigger a frame.
+  testWidgets('counter increments when the add button is tapped', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const MyApp());
+
     await tester.tap(find.byIcon(Icons.add));
     await tester.pump();
 
-    // Verify that our counter has incremented.
     expect(find.text('0'), findsNothing);
     expect(find.text('1'), findsOneWidget);
   });

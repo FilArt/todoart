@@ -14,6 +14,8 @@ devenv.local.yaml
 .venv/
 __pycache__/
 *.pyc
+.pytest_cache/
+.coverage
 
 # Flutter / Dart
 .dart_tool/

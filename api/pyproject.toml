@@ -1,0 +1,21 @@
+[project]
+name = "todoart-api"
+version = "0.1.0"
+description = "FastAPI backend for TodoArt"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi[standard]>=0.115,<1.0",
+]
+
+[dependency-groups]
+dev = [
+  "httpx>=0.28,<1.0",
+  "pytest>=8.3,<9.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
