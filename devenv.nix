@@ -34,7 +34,7 @@ in {
     enable = true;
     flutter.enable = true;
     buildTools.version = ["35.0.0"];
-    cmake.version = [ "3.22.1" ];
+    cmake.version = ["3.22.1"];
     extras = [];
     extraLicenses = ["android-sdk-license"];
     googleAPIs.enable = false;
@@ -74,6 +74,12 @@ in {
     fi
 
     flutter create --platforms=linux,android "$APP_DIR"
+  '';
+
+  scripts.install-android.exec = ''
+    cd "$APP_DIR"
+    flutter build apk --release --dart-define=TODO_API_BASE_URL=https://todo-api.artfil.site/
+    adb install -r $APP_DIR/build/app/outputs/flutter-apk/app-release.apk
   '';
 
   processes.api.exec = ''
