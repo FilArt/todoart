@@ -57,7 +57,8 @@ class TodoHomePage extends StatefulWidget {
 }
 
 class _TodoHomePageState extends State<TodoHomePage> {
-  final TextEditingController _controller = TextEditingController();
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
 
   List<TodoItem> _todos = const [];
   bool _isLoading = true;
@@ -76,7 +77,8 @@ class _TodoHomePageState extends State<TodoHomePage> {
 
   @override
   void dispose() {
-    _controller.dispose();
+    _titleController.dispose();
+    _descriptionController.dispose();
     super.dispose();
   }
 
@@ -109,7 +111,8 @@ class _TodoHomePageState extends State<TodoHomePage> {
   }
 
   Future<void> _addTodo() async {
-    final title = _controller.text.trim();
+    final title = _titleController.text.trim();
+    final description = _descriptionController.text.trim();
     if (title.isEmpty || _isCreating) {
       return;
     }
@@ -119,14 +122,18 @@ class _TodoHomePageState extends State<TodoHomePage> {
     });
 
     try {
-      final todo = await widget.repository.createTodo(title);
+      final todo = await widget.repository.createTodo(
+        title,
+        description: description,
+      );
       if (!mounted) {
         return;
       }
 
       setState(() {
         _todos = [todo, ..._todos];
-        _controller.clear();
+        _titleController.clear();
+        _descriptionController.clear();
         _isCreating = false;
       });
     } catch (error) {
@@ -157,19 +164,34 @@ class _TodoHomePageState extends State<TodoHomePage> {
     });
   }
 
-  Future<void> _renameTodo(TodoItem todo) async {
-    final controller = TextEditingController(text: todo.title);
-    final newTitle = await showDialog<String>(
+  Future<void> _editTodo(TodoItem todo) async {
+    final titleController = TextEditingController(text: todo.title);
+    final descriptionController = TextEditingController(text: todo.description);
+    final updatedDraft = await showDialog<_TodoDraft>(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: const Text('Edit task'),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            textInputAction: TextInputAction.done,
-            onSubmitted: (value) => Navigator.of(context).pop(value),
-            decoration: const InputDecoration(hintText: 'Todo title'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                key: const Key('todo-edit-title-input'),
+                controller: titleController,
+                autofocus: true,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(hintText: 'Todo title'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const Key('todo-edit-description-input'),
+                controller: descriptionController,
+                minLines: 3,
+                maxLines: 5,
+                textInputAction: TextInputAction.newline,
+                decoration: const InputDecoration(hintText: 'Description'),
+              ),
+            ],
           ),
           actions: [
             TextButton(
@@ -177,19 +199,28 @@ class _TodoHomePageState extends State<TodoHomePage> {
               child: const Text('Cancel'),
             ),
             FilledButton(
-              onPressed: () => Navigator.of(context).pop(controller.text),
+              onPressed: () {
+                Navigator.of(context).pop(
+                  _TodoDraft(
+                    title: titleController.text,
+                    description: descriptionController.text,
+                  ),
+                );
+              },
               child: const Text('Save'),
             ),
           ],
         );
       },
     );
-    controller.dispose();
 
-    final trimmedTitle = newTitle?.trim();
-    if (trimmedTitle == null ||
-        trimmedTitle.isEmpty ||
-        trimmedTitle == todo.title) {
+    final trimmedTitle = updatedDraft?.title.trim();
+    final trimmedDescription = updatedDraft?.description.trim() ?? '';
+    if (trimmedTitle == null || trimmedTitle.isEmpty) {
+      return;
+    }
+
+    if (trimmedTitle == todo.title && trimmedDescription == todo.description) {
       return;
     }
 
@@ -197,6 +228,7 @@ class _TodoHomePageState extends State<TodoHomePage> {
       final updated = await widget.repository.updateTodo(
         todo.id,
         title: trimmedTitle,
+        description: trimmedDescription,
       );
       if (!mounted) {
         return;
@@ -362,41 +394,59 @@ class _TodoHomePageState extends State<TodoHomePage> {
                 ),
               ),
               const SizedBox(height: 18),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      key: const Key('todo-input'),
-                      controller: _controller,
-                      textInputAction: TextInputAction.done,
-                      onSubmitted: (_) => _addTodo(),
-                      enabled: !_isCreating,
-                      decoration: const InputDecoration(
-                        hintText: 'Add a task',
-                        prefixIcon: Icon(Icons.edit_note_rounded),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: panel,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      TextField(
+                        key: const Key('todo-input'),
+                        controller: _titleController,
+                        textInputAction: TextInputAction.next,
+                        enabled: !_isCreating,
+                        decoration: const InputDecoration(
+                          hintText: 'Add a task',
+                          prefixIcon: Icon(Icons.edit_note_rounded),
+                        ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  FilledButton.icon(
-                    key: const Key('add-todo-button'),
-                    onPressed: _isCreating ? null : _addTodo,
-                    icon: _isCreating
-                        ? const SizedBox(
-                            height: 18,
-                            width: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.add_task_rounded),
-                    label: const Text('Add'),
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 18,
-                        vertical: 18,
+                      const SizedBox(height: 12),
+                      TextField(
+                        key: const Key('todo-description-input'),
+                        controller: _descriptionController,
+                        enabled: !_isCreating,
+                        minLines: 3,
+                        maxLines: 4,
+                        decoration: const InputDecoration(
+                          hintText: 'Add a description',
+                          alignLabelWithHint: true,
+                          prefixIcon: Icon(Icons.notes_rounded),
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 12),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: FilledButton.icon(
+                          key: const Key('add-todo-button'),
+                          onPressed: _isCreating ? null : _addTodo,
+                          icon: _isCreating
+                              ? const SizedBox(
+                                  height: 18,
+                                  width: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.add_task_rounded),
+                          label: const Text('Add'),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
               const SizedBox(height: 18),
               Expanded(child: _buildBody(theme)),
@@ -421,7 +471,8 @@ class _TodoHomePageState extends State<TodoHomePage> {
     if (_todos.isEmpty) {
       return _EmptyState(
         onAddDemoTask: () async {
-          _controller.text = 'Pick up a sketchbook';
+          _titleController.text = 'Pick up a sketchbook';
+          _descriptionController.text = 'Take ten minutes after lunch.';
           await _addTodo();
         },
       );
@@ -457,7 +508,7 @@ class _TodoHomePageState extends State<TodoHomePage> {
                 todo: todo,
                 busy: _busyIds.contains(todo.id),
                 onChanged: (value) => _toggleTodo(todo, value),
-                onEdit: () => _renameTodo(todo),
+                onEdit: () => _editTodo(todo),
                 onDelete: () => _removeTodo(todo),
               );
             },
@@ -523,6 +574,10 @@ class _TodoCard extends StatelessWidget {
       decoration: todo.done ? TextDecoration.lineThrough : null,
       color: todo.done ? scheme.onSurfaceVariant : scheme.onSurface,
     );
+    final descriptionStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
+      color: scheme.onSurfaceVariant,
+      height: 1.35,
+    );
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -543,6 +598,15 @@ class _TodoCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(todo.title, style: titleStyle),
+                  if (todo.description.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      todo.description,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: descriptionStyle,
+                    ),
+                  ],
                   const SizedBox(height: 4),
                   Text(
                     todo.done ? 'Done' : 'Up next',
@@ -675,4 +739,11 @@ class _ErrorState extends StatelessWidget {
       ),
     );
   }
+}
+
+class _TodoDraft {
+  const _TodoDraft({required this.title, required this.description});
+
+  final String title;
+  final String description;
 }

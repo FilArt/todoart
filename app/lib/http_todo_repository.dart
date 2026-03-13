@@ -39,11 +39,11 @@ class HttpTodoRepository implements TodoRepository {
   }
 
   @override
-  Future<TodoItem> createTodo(String title) async {
+  Future<TodoItem> createTodo(String title, {String description = ''}) async {
     final response = await _client.post(
       _uri('/todos'),
       headers: {'content-type': 'application/json'},
-      body: jsonEncode({'title': title}),
+      body: jsonEncode({'title': title, 'description': description}),
     );
     final payload = _decode(response);
 
@@ -55,10 +55,18 @@ class HttpTodoRepository implements TodoRepository {
   }
 
   @override
-  Future<TodoItem> updateTodo(int id, {String? title, bool? done}) async {
+  Future<TodoItem> updateTodo(
+    int id, {
+    String? title,
+    String? description,
+    bool? done,
+  }) async {
     final body = <String, dynamic>{};
     if (title != null) {
       body['title'] = title;
+    }
+    if (description != null) {
+      body['description'] = description;
     }
     if (done != null) {
       body['done'] = done;

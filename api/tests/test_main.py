@@ -1,5 +1,6 @@
 from collections.abc import Iterator
 from pathlib import Path
+import sqlite3
 
 import pytest
 from fastapi.testclient import TestClient
@@ -23,12 +24,19 @@ def test_healthcheck_returns_ok(client: TestClient) -> None:
 
 
 def test_can_create_and_list_todos(client: TestClient) -> None:
-    created = client.post("/todos", json={"title": "Buy oat milk"})
+    created = client.post(
+        "/todos",
+        json={
+            "title": "Buy oat milk",
+            "description": "For Saturday breakfast",
+        },
+    )
 
     assert created.status_code == 201
     assert created.json() == {
         "id": 1,
         "title": "Buy oat milk",
+        "description": "For Saturday breakfast",
         "done": False,
     }
 
@@ -39,24 +47,45 @@ def test_can_create_and_list_todos(client: TestClient) -> None:
         {
             "id": 1,
             "title": "Buy oat milk",
+            "description": "For Saturday breakfast",
             "done": False,
         },
     ]
 
 
+def test_create_without_description_defaults_to_empty_string(
+    client: TestClient,
+) -> None:
+    created = client.post("/todos", json={"title": "Pay the rent"})
+
+    assert created.status_code == 201
+    assert created.json()["description"] == ""
+
+
 def test_can_update_and_delete_todos(client: TestClient) -> None:
-    created = client.post("/todos", json={"title": "Book train tickets"})
+    created = client.post(
+        "/todos",
+        json={
+            "title": "Book train tickets",
+            "description": "Use the discount code from email",
+        },
+    )
     todo_id = created.json()["id"]
 
     updated = client.patch(
         f"/todos/{todo_id}",
-        json={"title": "Book train tickets home", "done": True},
+        json={
+            "title": "Book train tickets home",
+            "description": "Bring the bike reservation too",
+            "done": True,
+        },
     )
 
     assert updated.status_code == 200
     assert updated.json() == {
         "id": todo_id,
         "title": "Book train tickets home",
+        "description": "Bring the bike reservation too",
         "done": True,
     }
 
@@ -73,3 +102,39 @@ def test_can_update_and_delete_todos(client: TestClient) -> None:
 
     assert missing.status_code == 404
     assert missing.json() == {"detail": "Todo not found."}
+
+
+def test_existing_database_is_migrated_with_description_column(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "todoart-legacy.db"
+    with sqlite3.connect(db_path) as connection:
+        connection.execute(
+            """
+            CREATE TABLE todos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                done INTEGER NOT NULL DEFAULT 0 CHECK (done IN (0, 1))
+            )
+            """,
+        )
+        connection.execute(
+            "INSERT INTO todos (title, done) VALUES (?, ?)",
+            ("Existing task", 0),
+        )
+        connection.commit()
+
+    test_app = create_app(db_path=db_path)
+
+    with TestClient(test_app) as client:
+        listed = client.get("/todos")
+
+    assert listed.status_code == 200
+    assert listed.json() == [
+        {
+            "id": 1,
+            "title": "Existing task",
+            "description": "",
+            "done": False,
+        },
+    ]

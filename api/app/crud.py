@@ -6,11 +6,13 @@ from fastapi import HTTPException, status
 from .db import connect
 from .models import Todo, TodoCreate, TodoUpdate
 
+TODO_COLUMNS = "id, title, description, done"
+
 
 def list_todos(db_path: str | Path) -> list[Todo]:
     with connect(db_path) as connection:
         rows = connection.execute(
-            "SELECT id, title, done FROM todos ORDER BY id DESC",
+            f"SELECT {TODO_COLUMNS} FROM todos ORDER BY id DESC",
         ).fetchall()
 
     return [_todo_from_row(row) for row in rows]
@@ -19,7 +21,7 @@ def list_todos(db_path: str | Path) -> list[Todo]:
 def get_todo(db_path: str | Path, todo_id: int) -> Todo:
     with connect(db_path) as connection:
         row = connection.execute(
-            "SELECT id, title, done FROM todos WHERE id = ?",
+            f"SELECT {TODO_COLUMNS} FROM todos WHERE id = ?",
             (todo_id,),
         ).fetchone()
 
@@ -35,12 +37,12 @@ def get_todo(db_path: str | Path, todo_id: int) -> Todo:
 def create_todo(db_path: str | Path, payload: TodoCreate) -> Todo:
     with connect(db_path) as connection:
         cursor = connection.execute(
-            "INSERT INTO todos (title, done) VALUES (?, ?)",
-            (payload.title, 0),
+            "INSERT INTO todos (title, description, done) VALUES (?, ?, ?)",
+            (payload.title, payload.description, 0),
         )
         connection.commit()
         row = connection.execute(
-            "SELECT id, title, done FROM todos WHERE id = ?",
+            f"SELECT {TODO_COLUMNS} FROM todos WHERE id = ?",
             (cursor.lastrowid,),
         ).fetchone()
 
@@ -50,7 +52,7 @@ def create_todo(db_path: str | Path, payload: TodoCreate) -> Todo:
 def update_todo(db_path: str | Path, todo_id: int, payload: TodoUpdate) -> Todo:
     with connect(db_path) as connection:
         current = connection.execute(
-            "SELECT id, title, done FROM todos WHERE id = ?",
+            f"SELECT {TODO_COLUMNS} FROM todos WHERE id = ?",
             (todo_id,),
         ).fetchone()
 
@@ -61,15 +63,20 @@ def update_todo(db_path: str | Path, todo_id: int, payload: TodoUpdate) -> Todo:
             )
 
         title = payload.title if payload.title is not None else current["title"]
+        description = (
+            payload.description
+            if payload.description is not None
+            else current["description"]
+        )
         done = payload.done if payload.done is not None else bool(current["done"])
 
         connection.execute(
-            "UPDATE todos SET title = ?, done = ? WHERE id = ?",
-            (title, int(done), todo_id),
+            "UPDATE todos SET title = ?, description = ?, done = ? WHERE id = ?",
+            (title, description, int(done), todo_id),
         )
         connection.commit()
         row = connection.execute(
-            "SELECT id, title, done FROM todos WHERE id = ?",
+            f"SELECT {TODO_COLUMNS} FROM todos WHERE id = ?",
             (todo_id,),
         ).fetchone()
 
@@ -95,6 +102,7 @@ def _todo_from_row(row: sqlite3.Row) -> Todo:
     return Todo(
         id=int(row["id"]),
         title=str(row["title"]),
+        description=str(row["description"]),
         done=bool(row["done"]),
     )
 
