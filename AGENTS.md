@@ -33,15 +33,18 @@ You are the coordinating agent for this repository.
 - `cd api && uv run fastapi dev app/main.py --host 0.0.0.0 --port 8000`
 - `devenv up`
 
-## Current API boundary
+## Shared API contract
+
+This section is the source of truth for the todo API contract. Role-specific `AGENTS.md` files should reference this section instead of copying it.
+
 - `GET /todos`
-- `POST /todos` with `{ "title": string }`
+- `POST /todos` with `{ "title": string, "description"?: string }`
 - `GET /todos/{id}`
-- `PATCH /todos/{id}` with `{ "title"?: string, "done"?: bool }`
+- `PATCH /todos/{id}` with `{ "title"?: string, "description"?: string, "done"?: bool }`
 - `DELETE /todos/{id}`
 
 Responses use the todo shape:
 
 ```json
-{ "id": 1, "title": "Buy oat milk", "done": false }
+{ "id": 1, "title": "Buy oat milk", "description": "Barista blend only", "done": false }
 ```

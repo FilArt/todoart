@@ -19,18 +19,11 @@ You own the Flutter client in `app/**`.
 - Do not change the API contract on your own.
 - Do not move shared coordination into Flutter files.
 
-## Backend contract
-- `GET /todos`
-- `POST /todos` with `{ "title": string }`
-- `GET /todos/{id}`
-- `PATCH /todos/{id}` with `{ "title"?: string, "done"?: bool }`
-- `DELETE /todos/{id}`
+## Shared API contract
 
-Todo payload:
-
-```json
-{ "id": 1, "title": "Buy oat milk", "done": false }
-```
+Source of truth: `../AGENTS.md`, section `Shared API contract`.
+- Follow that contract exactly from the Flutter client.
+- If the contract needs to change, raise it through the supervisor instead of redefining it here.
 
 ## Validation
 - `cd app && flutter test`

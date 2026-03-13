@@ -19,18 +19,11 @@ You own the FastAPI backend in `api/**`.
 - Do not silently break the todo response shape.
 - Do not introduce schema drift without documenting it to the supervisor.
 
-## Required API contract
-- `GET /todos`
-- `POST /todos` with `{ "title": string }`
-- `GET /todos/{id}`
-- `PATCH /todos/{id}` with `{ "title"?: string, "done"?: bool }`
-- `DELETE /todos/{id}`
+## Shared API contract
 
-Todo payload:
-
-```json
-{ "id": 1, "title": "Buy oat milk", "done": false }
-```
+Source of truth: `../AGENTS.md`, section `Shared API contract`.
+- Implement that contract in the backend.
+- If the contract needs to change, coordinate it with the supervisor instead of redefining it here.
 
 ## Validation
 - `cd api && uv sync && uv run pytest`
