@@ -50,6 +50,22 @@ in
     flutter doctor -v
   '';
 
+  scripts."agent-supervisor-brief".exec = ''
+    sed -n '1,220p' "${config.devenv.root}/AGENTS.md"
+  '';
+
+  scripts."agent-frontend-brief".exec = ''
+    sed -n '1,220p' "${config.devenv.root}/app/AGENTS.md"
+  '';
+
+  scripts."agent-backend-brief".exec = ''
+    sed -n '1,220p' "${config.devenv.root}/api/AGENTS.md"
+  '';
+
+  scripts."agent-workflow".exec = ''
+    sed -n '1,240p' "${config.devenv.root}/docs/AGENT_WORKFLOW.md"
+  '';
+
   scripts."flutter-create".exec = ''
     if [ -f "$APP_DIR/pubspec.yaml" ]; then
       echo "Flutter app already exists at $APP_DIR" >&2
@@ -142,6 +158,10 @@ in
     echo "  app dir: $APP_DIR"
     echo "  api dir: $API_DIR"
     echo "  flutter-doctor"
+    echo "  agent-supervisor-brief"
+    echo "  agent-frontend-brief"
+    echo "  agent-backend-brief"
+    echo "  agent-workflow"
     echo "  flutter-create"
     echo "  app-run-linux"
     echo "  app-run-android"
