@@ -7,6 +7,9 @@ dependencies = [
   "fastapi[standard]>=0.115,<1.0",
 ]
 
+[project.scripts]
+todoart-api = "app.__main__:main"
+
 [dependency-groups]
 dev = [
   "httpx>=0.28,<1.0",

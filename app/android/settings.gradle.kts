@@ -2,7 +2,34 @@ pluginManagement {
     val flutterSdkPath =
         run {
             val properties = java.util.Properties()
-            file("local.properties").inputStream().use { properties.load(it) }
+            val localPropertiesFile = file("local.properties")
+            localPropertiesFile.inputStream().use { properties.load(it) }
+            val configuredNdkDir =
+                properties
+                    .getProperty("ndk.dir")
+                    ?.takeIf { file(it).resolve("source.properties").isFile }
+            val nixStoreNdkDir =
+                java.io.File("/nix/store")
+                    .listFiles()
+                    ?.asSequence()
+                    ?.filter { it.name.contains("-android-sdk-ndk-") }
+                    ?.mapNotNull { storePath ->
+                        storePath
+                            .resolve("libexec/android-sdk/ndk")
+                            .listFiles()
+                            ?.firstOrNull { candidate ->
+                                candidate.resolve("source.properties").isFile
+                            }
+                    }
+                    ?.firstOrNull()
+
+            val resolvedNdkDir = configuredNdkDir ?: nixStoreNdkDir?.absolutePath
+            if (resolvedNdkDir != null) {
+                properties.setProperty("ndk.dir", resolvedNdkDir)
+                localPropertiesFile.outputStream().use { output ->
+                    properties.store(output, null)
+                }
+            }
             val flutterSdkPath = properties.getProperty("flutter.sdk")
             require(flutterSdkPath != null) { "flutter.sdk not set in local.properties" }
             flutterSdkPath

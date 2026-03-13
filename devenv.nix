@@ -34,7 +34,7 @@ in {
     enable = true;
     flutter.enable = true;
     buildTools.version = ["35.0.0"];
-    cmake.version = [];
+    cmake.version = [ "3.22.1" ];
     extras = [];
     extraLicenses = ["android-sdk-license"];
     googleAPIs.enable = false;
@@ -43,7 +43,7 @@ in {
     # Keep the base shell lighter; re-enable these if you want a Nix-managed emulator.
     emulator.enable = false;
     systemImages.enable = false;
-    ndk.enable = false;
+    ndk.enable = true;
     googleTVAddOns.enable = false;
   };
 
