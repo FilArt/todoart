@@ -1,3 +1,4 @@
+from typing import Annotated
 from fastapi import APIRouter, Form, HTTPException, Request, UploadFile, status, File, Header
 
 from fastapi.responses import FileResponse
@@ -46,11 +47,11 @@ def _serialize_android_release(
 async def upload_android_release(
     db: Db,
     request: Request,
-    version: str = Form(min_length=1, max_length=100),
-    build_number: int = Form(ge=1),
-    apk: UploadFile = File(...),
-    notes: str = Form(default="", max_length=4000),
-    release_token: str | None = Header(default=None, alias="X-Release-Token"),
+    build_number: Annotated[int, Form(ge=1)],
+    version: Annotated[str, Form(min_length=1, max_length=100)],
+    apk: Annotated[UploadFile, File(...)],
+    release_token: Annotated[str | None, Header(alias="X-Release-Token")] = None,
+    notes: Annotated[str, Form(max_length=4000)] = "",
 ) -> AndroidRelease:
     _authorize_release_upload(request, release_token)
     release = release_crud.create_android_release(
@@ -65,13 +66,13 @@ async def upload_android_release(
 
 
 @router.get("/releases/android/latest", response_model=AndroidRelease)
-def get_latest_android_release(db: Db, request: Request) -> AndroidRelease:  # pyright: ignore[reportUnusedFunction]
+def get_latest_android_release(db: Db, request: Request) -> AndroidRelease:
     release = release_crud.get_latest_android_release(db)
     return _serialize_android_release(request, release)
 
 
 @router.get("/releases/android/download/{filename}")
-def download_android_release(request: Request, db: Db, filename: str) -> FileResponse:  # pyright: ignore[reportUnusedFunction]
+def download_android_release(request: Request, db: Db, filename: str) -> FileResponse:
     release_path = release_crud.get_android_release_file(
         db,
         request.app.state.releases_dir,

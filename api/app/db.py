@@ -35,12 +35,6 @@ def init_db(db_path: str | Path) -> None:
         connection.commit()
 
 
-def connect(db_path: str | Path) -> sqlite3.Connection:
-    connection = sqlite3.connect(db_path, check_same_thread=False)
-    connection.row_factory = sqlite3.Row
-    return connection
-
-
 def _ensure_description_column(connection: sqlite3.Connection) -> None:
     columns = connection.execute("PRAGMA table_info(todos)").fetchall()
     column_names = {column[1] for column in columns}
@@ -50,6 +44,12 @@ def _ensure_description_column(connection: sqlite3.Connection) -> None:
     connection.execute(
         "ALTER TABLE todos ADD COLUMN description TEXT NOT NULL DEFAULT ''",
     )
+
+
+def connect(db_path: str | Path) -> sqlite3.Connection:
+    connection = sqlite3.connect(db_path, check_same_thread=False)
+    connection.row_factory = sqlite3.Row
+    return connection
 
 
 def get_db(request: Request) -> Generator[sqlite3.Connection, None, None]:

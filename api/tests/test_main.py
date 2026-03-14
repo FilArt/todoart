@@ -178,10 +178,7 @@ def test_can_upload_fetch_and_download_android_release(client: TestClient) -> No
 
     assert downloaded.status_code == 200
     assert downloaded.content == b"fake-apk-binary"
-    assert (
-        downloaded.headers["content-type"]
-        == "application/vnd.android.package-archive"
-    )
+    assert downloaded.headers["content-type"] == "application/vnd.android.package-archive"
 
 
 def test_latest_android_release_returns_highest_build_number(
