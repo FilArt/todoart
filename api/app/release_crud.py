@@ -5,15 +5,15 @@ import sqlite3
 import uuid
 
 from fastapi import HTTPException, UploadFile, status
-
-from .db import connect
 from .models import AndroidReleaseRecord
 
 ANDROID_RELEASE_COLUMNS = "version, build_number, notes, filename, published_at"
 
+Db = sqlite3.Connection
+
 
 def create_android_release(
-    db_path: str | Path,
+    db: Db,
     releases_dir: str | Path,
     *,
     version: str,
@@ -32,34 +32,33 @@ def create_android_release(
         with destination.open("wb") as output_file:
             shutil.copyfileobj(apk.file, output_file)
 
-        with connect(db_path) as connection:
-            connection.execute(
-                """
-                INSERT INTO android_releases (
-                    version,
-                    build_number,
-                    notes,
-                    filename,
-                    published_at
-                )
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (version, build_number, notes, filename, published_at),
+        db.execute(
+            """
+            INSERT INTO android_releases (
+                version,
+                build_number,
+                notes,
+                filename,
+                published_at
             )
-            connection.commit()
-            row = connection.execute(
-                """
-                SELECT
-                    version,
-                    build_number,
-                    notes,
-                    filename,
-                    published_at
-                FROM android_releases
-                WHERE filename = ?
-                """,
-                (filename,),
-            ).fetchone()
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (version, build_number, notes, filename, published_at),
+        )
+        db.commit()
+        row = db.execute(
+            """
+            SELECT
+                version,
+                build_number,
+                notes,
+                filename,
+                published_at
+            FROM android_releases
+            WHERE filename = ?
+            """,
+            (filename,),
+        ).fetchone()
     except Exception:
         destination.unlink(missing_ok=True)
         raise
@@ -67,16 +66,15 @@ def create_android_release(
     return _release_from_row(_require_row(row))
 
 
-def get_latest_android_release(db_path: str | Path) -> AndroidReleaseRecord:
-    with connect(db_path) as connection:
-        row = connection.execute(
-            f"""
-            SELECT {ANDROID_RELEASE_COLUMNS}
-            FROM android_releases
-            ORDER BY build_number DESC, id DESC
-            LIMIT 1
-            """,
-        ).fetchone()
+def get_latest_android_release(db: Db) -> AndroidReleaseRecord:
+    row = db.execute(
+        f"""
+        SELECT {ANDROID_RELEASE_COLUMNS}
+        FROM android_releases
+        ORDER BY build_number DESC, id DESC
+        LIMIT 1
+        """,
+    ).fetchone()
 
     if row is None:
         raise HTTPException(
@@ -88,15 +86,14 @@ def get_latest_android_release(db_path: str | Path) -> AndroidReleaseRecord:
 
 
 def get_android_release_file(
-    db_path: str | Path,
+    db: Db,
     releases_dir: str | Path,
     filename: str,
 ) -> Path:
-    with connect(db_path) as connection:
-        row = connection.execute(
-            "SELECT filename FROM android_releases WHERE filename = ?",
-            (filename,),
-        ).fetchone()
+    row = db.execute(
+        "SELECT filename FROM android_releases WHERE filename = ?",
+        (filename,),
+    ).fetchone()
 
     if row is None:
         raise HTTPException(
@@ -115,10 +112,7 @@ def get_android_release_file(
 
 
 def _build_release_filename(version: str, build_number: int) -> str:
-    slug = "".join(
-        character if character.isalnum() else "-"
-        for character in version.strip().lower()
-    ).strip("-")
+    slug = "".join(character if character.isalnum() else "-" for character in version.strip().lower()).strip("-")
     slug = slug or "release"
     return f"todoart-android-{slug}-{build_number}-{uuid.uuid4().hex[:12]}.apk"
 

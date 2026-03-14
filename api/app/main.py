@@ -17,7 +17,7 @@ from fastapi.responses import FileResponse
 
 from . import crud
 from . import release_crud
-from .db import init_db
+from .db import Db, init_db
 from .models import AndroidRelease, AndroidReleaseRecord, Todo, TodoCreate, TodoUpdate
 
 
@@ -47,36 +47,36 @@ def create_app(
 
     app = FastAPI(title="TodoArt API", lifespan=lifespan)
 
+    @app.get("/todos", response_model=list[Todo])
+    def list_todo_items(db: Db) -> list[Todo]:  # pyright: ignore[reportUnusedFunction]
+        return crud.list_todos(db)
+
     @app.get("/")
-    def read_root() -> dict[str, str]:
+    def read_root() -> dict[str, str]:  # pyright: ignore[reportUnusedFunction]
         return {
             "message": "TodoArt API is running",
             "status": "ok",
         }
 
     @app.get("/health")
-    def healthcheck() -> dict[str, str]:
+    def healthcheck() -> dict[str, str]:  # pyright: ignore[reportUnusedFunction]
         return {"status": "ok"}
 
-    @app.get("/todos", response_model=list[Todo])
-    def list_todo_items() -> list[Todo]:
-        return crud.list_todos(app.state.db_path)
-
     @app.post("/todos", response_model=Todo, status_code=status.HTTP_201_CREATED)
-    def create_todo_item(payload: TodoCreate) -> Todo:
-        return crud.create_todo(app.state.db_path, payload)
+    def create_todo_item(db: Db, payload: TodoCreate) -> Todo:  # pyright: ignore[reportUnusedFunction]
+        return crud.create_todo(db, payload)
 
     @app.get("/todos/{todo_id}", response_model=Todo)
-    def get_todo_item(todo_id: int) -> Todo:
-        return crud.get_todo(app.state.db_path, todo_id)
+    def get_todo_item(db: Db, todo_id: int) -> Todo:  # pyright: ignore[reportUnusedFunction]
+        return crud.get_todo(db, todo_id)
 
     @app.patch("/todos/{todo_id}", response_model=Todo)
-    def update_todo_item(todo_id: int, payload: TodoUpdate) -> Todo:
-        return crud.update_todo(app.state.db_path, todo_id, payload)
+    def update_todo_item(db: Db, todo_id: int, payload: TodoUpdate) -> Todo:  # pyright: ignore[reportUnusedFunction]
+        return crud.update_todo(db, todo_id, payload)
 
     @app.delete("/todos/{todo_id}", status_code=status.HTTP_204_NO_CONTENT)
-    def delete_todo_item(todo_id: int) -> Response:
-        crud.delete_todo(app.state.db_path, todo_id)
+    def delete_todo_item(db: Db, todo_id: int) -> Response:  # pyright: ignore[reportUnusedFunction]
+        crud.delete_todo(db, todo_id)
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     @app.post(
@@ -84,7 +84,8 @@ def create_app(
         response_model=AndroidRelease,
         status_code=status.HTTP_201_CREATED,
     )
-    async def upload_android_release(
+    async def upload_android_release(  # pyright: ignore[reportUnusedFunction]
+        db: Db,
         request: Request,
         version: str = Form(min_length=1, max_length=100),
         build_number: int = Form(ge=1),
@@ -94,7 +95,7 @@ def create_app(
     ) -> AndroidRelease:
         _authorize_release_upload(request, release_token)
         release = release_crud.create_android_release(
-            app.state.db_path,
+            db,
             app.state.releases_dir,
             version=version.strip(),
             build_number=build_number,
@@ -104,14 +105,14 @@ def create_app(
         return _serialize_android_release(request, release)
 
     @app.get("/releases/android/latest", response_model=AndroidRelease)
-    def get_latest_android_release(request: Request) -> AndroidRelease:
-        release = release_crud.get_latest_android_release(app.state.db_path)
+    def get_latest_android_release(db: Db, request: Request) -> AndroidRelease:  # pyright: ignore[reportUnusedFunction]
+        release = release_crud.get_latest_android_release(db)
         return _serialize_android_release(request, release)
 
     @app.get("/releases/android/download/{filename}")
-    def download_android_release(filename: str) -> FileResponse:
+    def download_android_release(db: Db, filename: str) -> FileResponse:  # pyright: ignore[reportUnusedFunction]
         release_path = release_crud.get_android_release_file(
-            app.state.db_path,
+            db,
             app.state.releases_dir,
             filename,
         )

@@ -1,5 +1,9 @@
+from collections.abc import Generator
 from pathlib import Path
 import sqlite3
+from typing import Annotated
+
+from fastapi import Depends, Request
 
 
 SCHEMA = """
@@ -32,7 +36,7 @@ def init_db(db_path: str | Path) -> None:
 
 
 def connect(db_path: str | Path) -> sqlite3.Connection:
-    connection = sqlite3.connect(db_path)
+    connection = sqlite3.connect(db_path, check_same_thread=False)
     connection.row_factory = sqlite3.Row
     return connection
 
@@ -46,3 +50,11 @@ def _ensure_description_column(connection: sqlite3.Connection) -> None:
     connection.execute(
         "ALTER TABLE todos ADD COLUMN description TEXT NOT NULL DEFAULT ''",
     )
+
+
+def get_db(request: Request) -> Generator[sqlite3.Connection, None, None]:
+    with connect(request.app.state.db_path) as db:  # pyright: ignore[reportAny]
+        yield db
+
+
+Db = Annotated[sqlite3.Connection, Depends(get_db)]

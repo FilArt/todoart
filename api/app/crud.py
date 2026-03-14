@@ -1,29 +1,27 @@
-from pathlib import Path
 import sqlite3
 
 from fastapi import HTTPException, status
 
-from .db import connect
 from .models import Todo, TodoCreate, TodoUpdate
 
 TODO_COLUMNS = "id, title, description, done"
 
+Db = sqlite3.Connection
 
-def list_todos(db_path: str | Path) -> list[Todo]:
-    with connect(db_path) as connection:
-        rows = connection.execute(
-            f"SELECT {TODO_COLUMNS} FROM todos ORDER BY id DESC",
-        ).fetchall()
+
+def list_todos(db: Db) -> list[Todo]:
+    rows = db.execute(
+        f"SELECT {TODO_COLUMNS} FROM todos ORDER BY id DESC",
+    ).fetchall()
 
     return [_todo_from_row(row) for row in rows]
 
 
-def get_todo(db_path: str | Path, todo_id: int) -> Todo:
-    with connect(db_path) as connection:
-        row = connection.execute(
-            f"SELECT {TODO_COLUMNS} FROM todos WHERE id = ?",
-            (todo_id,),
-        ).fetchone()
+def get_todo(db: Db, todo_id: int) -> Todo:
+    row = db.execute(
+        f"SELECT {TODO_COLUMNS} FROM todos WHERE id = ?",
+        (todo_id,),
+    ).fetchone()
 
     if row is None:
         raise HTTPException(
@@ -34,62 +32,55 @@ def get_todo(db_path: str | Path, todo_id: int) -> Todo:
     return _todo_from_row(row)
 
 
-def create_todo(db_path: str | Path, payload: TodoCreate) -> Todo:
-    with connect(db_path) as connection:
-        cursor = connection.execute(
-            "INSERT INTO todos (title, description, done) VALUES (?, ?, ?)",
-            (payload.title, payload.description, 0),
-        )
-        connection.commit()
-        row = connection.execute(
-            f"SELECT {TODO_COLUMNS} FROM todos WHERE id = ?",
-            (cursor.lastrowid,),
-        ).fetchone()
+def create_todo(db: Db, payload: TodoCreate) -> Todo:
+    cursor = db.execute(
+        "INSERT INTO todos (title, description, done) VALUES (?, ?, ?)",
+        (payload.title, payload.description, 0),
+    )
+    db.commit()
+    row = db.execute(
+        f"SELECT {TODO_COLUMNS} FROM todos WHERE id = ?",
+        (cursor.lastrowid,),
+    ).fetchone()
 
     return _todo_from_row(_require_row(row))
 
 
-def update_todo(db_path: str | Path, todo_id: int, payload: TodoUpdate) -> Todo:
-    with connect(db_path) as connection:
-        current = connection.execute(
-            f"SELECT {TODO_COLUMNS} FROM todos WHERE id = ?",
-            (todo_id,),
-        ).fetchone()
+def update_todo(db: Db, todo_id: int, payload: TodoUpdate) -> Todo:
+    current = db.execute(
+        f"SELECT {TODO_COLUMNS} FROM todos WHERE id = ?",
+        (todo_id,),
+    ).fetchone()
 
-        if current is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Todo not found.",
-            )
-
-        title = payload.title if payload.title is not None else current["title"]
-        description = (
-            payload.description
-            if payload.description is not None
-            else current["description"]
+    if current is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Todo not found.",
         )
-        done = payload.done if payload.done is not None else bool(current["done"])
 
-        connection.execute(
-            "UPDATE todos SET title = ?, description = ?, done = ? WHERE id = ?",
-            (title, description, int(done), todo_id),
-        )
-        connection.commit()
-        row = connection.execute(
-            f"SELECT {TODO_COLUMNS} FROM todos WHERE id = ?",
-            (todo_id,),
-        ).fetchone()
+    title = payload.title if payload.title is not None else current["title"]
+    description = payload.description if payload.description is not None else current["description"]
+    done = payload.done if payload.done is not None else bool(current["done"])
+
+    db.execute(
+        "UPDATE todos SET title = ?, description = ?, done = ? WHERE id = ?",
+        (title, description, int(done), todo_id),
+    )
+    db.commit()
+    row = db.execute(
+        f"SELECT {TODO_COLUMNS} FROM todos WHERE id = ?",
+        (todo_id,),
+    ).fetchone()
 
     return _todo_from_row(_require_row(row))
 
 
-def delete_todo(db_path: str | Path, todo_id: int) -> None:
-    with connect(db_path) as connection:
-        cursor = connection.execute(
-            "DELETE FROM todos WHERE id = ?",
-            (todo_id,),
-        )
-        connection.commit()
+def delete_todo(db: Db, todo_id: int) -> None:
+    cursor = db.execute(
+        "DELETE FROM todos WHERE id = ?",
+        (todo_id,),
+    )
+    db.commit()
 
     if cursor.rowcount == 0:
         raise HTTPException(
