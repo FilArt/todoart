@@ -15,21 +15,32 @@ void main() {
 
 class MyApp extends StatelessWidget {
   MyApp({
-    super.key,
+    Key? key,
     TodoRepository? repository,
     AppUpdateController? updateController,
-  }) : repository =
-           repository ?? HttpTodoRepository(baseUrl: resolveTodoApiBaseUrl()),
+    String? apiBaseUrl,
+  }) : this._internal(
+         key: key,
+         apiBaseUrl: apiBaseUrl ?? resolveTodoApiBaseUrl(),
+         repository: repository,
+         updateController: updateController,
+       );
+
+  MyApp._internal({
+    super.key,
+    required this.apiBaseUrl,
+    TodoRepository? repository,
+    AppUpdateController? updateController,
+  }) : repository = repository ?? HttpTodoRepository(baseUrl: apiBaseUrl),
        updateController =
            updateController ??
            DefaultAppUpdateController(
-             releaseRepository: HttpAppReleaseRepository(
-               baseUrl: resolveTodoApiBaseUrl(),
-             ),
+             releaseRepository: HttpAppReleaseRepository(baseUrl: apiBaseUrl),
            );
 
   final TodoRepository repository;
   final AppUpdateController updateController;
+  final String apiBaseUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -58,6 +69,7 @@ class MyApp extends StatelessWidget {
         ),
       ),
       home: TodoHomePage(
+        apiBaseUrl: apiBaseUrl,
         repository: repository,
         updateController: updateController,
       ),
@@ -68,10 +80,12 @@ class MyApp extends StatelessWidget {
 class TodoHomePage extends StatefulWidget {
   const TodoHomePage({
     super.key,
+    required this.apiBaseUrl,
     required this.repository,
     required this.updateController,
   });
 
+  final String apiBaseUrl;
   final TodoRepository repository;
   final AppUpdateController updateController;
 
@@ -96,10 +110,26 @@ class _TodoHomePageState extends State<TodoHomePage> {
   @override
   void initState() {
     super.initState();
+    _loadCurrentVersion();
     _loadTodos();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _autoCheckForUpdates();
     });
+  }
+
+  Future<void> _loadCurrentVersion() async {
+    try {
+      final currentVersion = await widget.updateController.readCurrentVersion();
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _currentVersion = currentVersion;
+      });
+    } catch (_) {
+      // Keep the modal usable even if platform version info is unavailable.
+    }
   }
 
   Future<void> _loadTodos() async {
@@ -454,6 +484,76 @@ class _TodoHomePageState extends State<TodoHomePage> {
     }
   }
 
+  Future<void> _showAppInfoDialog() {
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        final theme = Theme.of(dialogContext);
+        final versionLabel = _currentVersion?.label ?? 'Loading...';
+
+        return AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Icon(
+                  Icons.help_outline_rounded,
+                  size: 42,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                'Store version',
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                versionLabel,
+                key: const Key('app-info-version-value'),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Base API URL',
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                widget.apiBaseUrl,
+                key: const Key('app-info-api-url-value'),
+                style: theme.textTheme.bodyMedium,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Close'),
+            ),
+            FilledButton(
+              key: const Key('modal-check-updates-button'),
+              onPressed: _isCheckingUpdates || _isInstallingUpdate
+                  ? null
+                  : () {
+                      Navigator.of(dialogContext).pop();
+                      _checkForUpdates(interactive: true);
+                    },
+              child: const Text('Check for updates'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _runForTodo(int todoId, Future<void> Function() action) async {
     setState(() {
       _busyIds.add(todoId);
@@ -542,6 +642,12 @@ class _TodoHomePageState extends State<TodoHomePage> {
                             tooltip: 'Refresh tasks',
                             icon: const Icon(Icons.sync_rounded),
                           ),
+                          IconButton(
+                            key: const Key('open-app-info-button'),
+                            onPressed: _showAppInfoDialog,
+                            tooltip: 'App info',
+                            icon: const Icon(Icons.help_outline_rounded),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 20),
@@ -549,12 +655,6 @@ class _TodoHomePageState extends State<TodoHomePage> {
                         spacing: 10,
                         runSpacing: 10,
                         children: [
-                          if (_currentVersion != null)
-                            _StatChip(
-                              label: 'v${_currentVersion!.label}',
-                              backgroundColor: scheme.tertiaryContainer,
-                              foregroundColor: scheme.onTertiaryContainer,
-                            ),
                           _StatChip(
                             label: '$_openCount open',
                             backgroundColor: scheme.primaryContainer,
@@ -578,30 +678,6 @@ class _TodoHomePageState extends State<TodoHomePage> {
                                   )
                                 : const Icon(Icons.add_task_rounded),
                             label: const Text('New task'),
-                          ),
-                          OutlinedButton.icon(
-                            key: const Key('check-updates-button'),
-                            onPressed: _isCheckingUpdates || _isInstallingUpdate
-                                ? null
-                                : () => _checkForUpdates(interactive: true),
-                            icon: _isCheckingUpdates || _isInstallingUpdate
-                                ? const SizedBox(
-                                    height: 18,
-                                    width: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : Icon(
-                                    _availableUpdate == null
-                                        ? Icons.system_update_alt_rounded
-                                        : Icons.download_rounded,
-                                  ),
-                            label: Text(
-                              _availableUpdate == null
-                                  ? 'Check updates'
-                                  : 'Update ${_availableUpdate!.version}',
-                            ),
                           ),
                         ],
                       ),

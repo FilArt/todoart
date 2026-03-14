@@ -84,15 +84,26 @@ class FakeAppUpdateController implements AppUpdateController {
   int checkCalls = 0;
   AppRelease? installedRelease;
 
+  UpdateCheckResult get _defaultResult => const UpdateCheckResult(
+    currentVersion: AppVersionInfo(version: '1.0.0', buildNumber: 1),
+    latestRelease: null,
+  );
+
+  @override
+  Future<AppVersionInfo> readCurrentVersion() async {
+    if (_queuedResults.isEmpty) {
+      return _defaultResult.currentVersion;
+    }
+
+    return _queuedResults.first.currentVersion;
+  }
+
   @override
   Future<UpdateCheckResult> checkForUpdates() async {
     checkCalls += 1;
 
     if (_queuedResults.isEmpty) {
-      return const UpdateCheckResult(
-        currentVersion: AppVersionInfo(version: '1.0.0', buildNumber: 1),
-        latestRelease: null,
-      );
+      return _defaultResult;
     }
 
     if (_queuedResults.length == 1) {
@@ -365,11 +376,39 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const Key('check-updates-button')));
+    await tester.tap(find.byKey(const Key('open-app-info-button')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('modal-check-updates-button')));
     await tester.pumpAndSettle();
 
     expect(updateController.checkCalls, 2);
     expect(find.text('Update available'), findsOneWidget);
     expect(find.text('Latest version 1.2.0+3'), findsOneWidget);
+  });
+
+  testWidgets('app info modal shows version and base API URL', (
+    WidgetTester tester,
+  ) async {
+    await _setSurfaceSize(tester);
+
+    await tester.pumpWidget(
+      MyApp(
+        repository: FakeTodoRepository(),
+        updateController: FakeAppUpdateController(),
+        apiBaseUrl: 'https://api.todoart.test',
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('open-app-info-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Store version'), findsOneWidget);
+    expect(find.byKey(const Key('app-info-version-value')), findsOneWidget);
+    expect(find.text('1.0.0+1'), findsOneWidget);
+    expect(find.text('Base API URL'), findsOneWidget);
+    expect(find.text('https://api.todoart.test'), findsOneWidget);
+    expect(find.byKey(const Key('modal-check-updates-button')), findsOneWidget);
   });
 }

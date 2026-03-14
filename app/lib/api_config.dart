@@ -1,9 +1,10 @@
 import 'package:flutter/foundation.dart';
 
+const _configuredTodoApiBaseUrl = String.fromEnvironment('TODO_API_BASE_URL');
+
 String resolveTodoApiBaseUrl() {
-  const configuredBaseUrl = String.fromEnvironment('TODO_API_BASE_URL');
-  if (configuredBaseUrl.isNotEmpty) {
-    return configuredBaseUrl;
+  if (_configuredTodoApiBaseUrl.isNotEmpty) {
+    return _configuredTodoApiBaseUrl;
   }
 
   return switch (defaultTargetPlatform) {

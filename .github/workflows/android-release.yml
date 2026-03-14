@@ -45,7 +45,7 @@ jobs:
         run: |
           version_line="$(grep '^version:' app/pubspec.yaml | awk '{print $2}')"
           build_name="${version_line%%+*}"
-          build_number="${version_line##*+}"
+          build_number="${GITHUB_RUN_NUMBER}"
 
           echo "build_name=$build_name" >> "$GITHUB_OUTPUT"
           echo "build_number=$build_number" >> "$GITHUB_OUTPUT"
@@ -79,7 +79,11 @@ jobs:
 
       - name: Build release APK
         working-directory: app
-        run: flutter build apk --release --dart-define=TODO_API_BASE_URL="$TODOART_API_BASE_URL"
+        run: >
+          flutter build apk --release
+          --build-name "${{ steps.app_version.outputs.build_name }}"
+          --build-number "${{ steps.app_version.outputs.build_number }}"
+          --dart-define=TODO_API_BASE_URL="$TODOART_API_BASE_URL"
 
       - name: Store APK artifact
         uses: actions/upload-artifact@v4

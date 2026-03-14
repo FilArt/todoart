@@ -43,6 +43,8 @@ class UpdateCheckResult {
 abstract class AppUpdateController {
   bool get supportsSelfUpdate;
 
+  Future<AppVersionInfo> readCurrentVersion();
+
   Future<UpdateCheckResult> checkForUpdates();
 
   Future<void> installUpdate(AppRelease release);
@@ -63,12 +65,18 @@ class DefaultAppUpdateController implements AppUpdateController {
       !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
   @override
-  Future<UpdateCheckResult> checkForUpdates() async {
+  Future<AppVersionInfo> readCurrentVersion() async {
     final packageInfo = await PackageInfo.fromPlatform();
+    return AppVersionInfo.fromPackageInfo(packageInfo);
+  }
+
+  @override
+  Future<UpdateCheckResult> checkForUpdates() async {
+    final currentVersion = await readCurrentVersion();
     final latestRelease = await _releaseRepository.fetchLatestAndroidRelease();
 
     return UpdateCheckResult(
-      currentVersion: AppVersionInfo.fromPackageInfo(packageInfo),
+      currentVersion: currentVersion,
       latestRelease: latestRelease,
     );
   }
