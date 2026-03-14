@@ -87,11 +87,6 @@ in {
     uv run fastapi dev app/main.py --host 0.0.0.0 --port 8000
   '';
 
-  processes.app.exec = ''
-    cd "$APP_DIR"
-    flutter run -d linux
-  '';
-
   enterShell = ''
     flutter config --enable-linux-desktop --enable-android >/dev/null 2>&1 || true
 
