@@ -28,7 +28,7 @@ def _serialize_android_release(
     release: AndroidReleaseRecord,
 ) -> AndroidRelease:
     download_url = str(
-        request.url_for("download_android_release", filename=release.filename),
+        request.url_for("download", filename=release.filename),
     )
     return AndroidRelease(
         version=release.version,
