@@ -136,12 +136,18 @@ void main() {
     await tester.pumpWidget(MyApp(repository: repository));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byKey(const Key('todo-input')), 'Buy oat milk');
+    await tester.tap(find.byKey(const Key('open-create-todo-button')));
+    await tester.pumpAndSettle();
+
     await tester.enterText(
-      find.byKey(const Key('todo-description-input')),
+      find.byKey(const Key('todo-create-title-input')),
+      'Buy oat milk',
+    );
+    await tester.enterText(
+      find.byKey(const Key('todo-create-description-input')),
       'Grab the barista blend.',
     );
-    await tester.tap(find.byKey(const Key('add-todo-button')));
+    await tester.tap(find.byKey(const Key('todo-create-submit-button')));
     await tester.pumpAndSettle();
 
     expect(find.text('Buy oat milk'), findsOneWidget);
@@ -181,7 +187,7 @@ void main() {
       find.byKey(const Key('todo-edit-description-input')),
       'Outline the first five exercises.',
     );
-    await tester.tap(find.text('Save'));
+    await tester.tap(find.byKey(const Key('todo-edit-submit-button')));
     await tester.pumpAndSettle();
 
     expect(find.text('Outline the first five exercises.'), findsOneWidget);
@@ -201,4 +207,27 @@ void main() {
     expect(find.text('Could not load todos'), findsOneWidget);
     expect(find.byKey(const Key('retry-load-button')), findsOneWidget);
   });
+
+  testWidgets(
+    'keeps the empty-state starter action reachable on short screens',
+    (WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(360, 640));
+      addTearDown(() async {
+        await tester.binding.setSurfaceSize(null);
+      });
+
+      await tester.pumpWidget(MyApp(repository: FakeTodoRepository()));
+      await tester.pumpAndSettle();
+
+      final starterTaskButton = find.widgetWithText(
+        OutlinedButton,
+        'Add a starter task',
+      );
+
+      await tester.ensureVisible(starterTaskButton);
+
+      expect(starterTaskButton, findsOneWidget);
+      expect(tester.getRect(starterTaskButton).bottom, lessThanOrEqualTo(640));
+    },
+  );
 }

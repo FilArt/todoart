@@ -57,9 +57,6 @@ class TodoHomePage extends StatefulWidget {
 }
 
 class _TodoHomePageState extends State<TodoHomePage> {
-  final TextEditingController _titleController = TextEditingController();
-  final TextEditingController _descriptionController = TextEditingController();
-
   List<TodoItem> _todos = const [];
   bool _isLoading = true;
   bool _isCreating = false;
@@ -73,13 +70,6 @@ class _TodoHomePageState extends State<TodoHomePage> {
   void initState() {
     super.initState();
     _loadTodos();
-  }
-
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _descriptionController.dispose();
-    super.dispose();
   }
 
   Future<void> _loadTodos() async {
@@ -110,10 +100,22 @@ class _TodoHomePageState extends State<TodoHomePage> {
     }
   }
 
-  Future<void> _addTodo() async {
-    final title = _titleController.text.trim();
-    final description = _descriptionController.text.trim();
-    if (title.isEmpty || _isCreating) {
+  Future<void> _createTodo({_TodoDraft? initialDraft}) async {
+    if (_isCreating) {
+      return;
+    }
+
+    final draft = await _showTodoDraftDialog(
+      dialogTitle: 'Add task',
+      submitLabel: 'Add',
+      submitKey: const Key('todo-create-submit-button'),
+      titleFieldKey: const Key('todo-create-title-input'),
+      descriptionFieldKey: const Key('todo-create-description-input'),
+      initialDraft: initialDraft,
+    );
+    final title = draft?.title.trim();
+    final description = draft?.description.trim() ?? '';
+    if (title == null || title.isEmpty) {
       return;
     }
 
@@ -132,8 +134,6 @@ class _TodoHomePageState extends State<TodoHomePage> {
 
       setState(() {
         _todos = [todo, ..._todos];
-        _titleController.clear();
-        _descriptionController.clear();
         _isCreating = false;
       });
     } catch (error) {
@@ -165,53 +165,16 @@ class _TodoHomePageState extends State<TodoHomePage> {
   }
 
   Future<void> _editTodo(TodoItem todo) async {
-    final titleController = TextEditingController(text: todo.title);
-    final descriptionController = TextEditingController(text: todo.description);
-    final updatedDraft = await showDialog<_TodoDraft>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Edit task'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                key: const Key('todo-edit-title-input'),
-                controller: titleController,
-                autofocus: true,
-                textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(hintText: 'Todo title'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                key: const Key('todo-edit-description-input'),
-                controller: descriptionController,
-                minLines: 3,
-                maxLines: 5,
-                textInputAction: TextInputAction.newline,
-                decoration: const InputDecoration(hintText: 'Description'),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.of(context).pop(
-                  _TodoDraft(
-                    title: titleController.text,
-                    description: descriptionController.text,
-                  ),
-                );
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        );
-      },
+    final updatedDraft = await _showTodoDraftDialog(
+      dialogTitle: 'Edit task',
+      submitLabel: 'Save',
+      submitKey: const Key('todo-edit-submit-button'),
+      titleFieldKey: const Key('todo-edit-title-input'),
+      descriptionFieldKey: const Key('todo-edit-description-input'),
+      initialDraft: _TodoDraft(
+        title: todo.title,
+        description: todo.description,
+      ),
     );
 
     final trimmedTitle = updatedDraft?.title.trim();
@@ -238,6 +201,29 @@ class _TodoHomePageState extends State<TodoHomePage> {
         _todos = _replaceTodo(updated);
       });
     });
+  }
+
+  Future<_TodoDraft?> _showTodoDraftDialog({
+    required String dialogTitle,
+    required String submitLabel,
+    required Key submitKey,
+    required Key titleFieldKey,
+    required Key descriptionFieldKey,
+    _TodoDraft? initialDraft,
+  }) {
+    return showDialog<_TodoDraft>(
+      context: context,
+      builder: (context) {
+        return _TodoDraftDialog(
+          dialogTitle: dialogTitle,
+          submitLabel: submitLabel,
+          submitKey: submitKey,
+          titleFieldKey: titleFieldKey,
+          descriptionFieldKey: descriptionFieldKey,
+          initialDraft: initialDraft,
+        );
+      },
+    );
   }
 
   Future<void> _removeTodo(TodoItem todo) async {
@@ -364,14 +350,6 @@ class _TodoHomePageState extends State<TodoHomePage> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Live list from FastAPI. Add, edit, complete, and delete tasks from one place.',
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                          height: 1.35,
-                        ),
-                      ),
                       const SizedBox(height: 20),
                       Wrap(
                         spacing: 10,
@@ -387,62 +365,21 @@ class _TodoHomePageState extends State<TodoHomePage> {
                             backgroundColor: scheme.secondaryContainer,
                             foregroundColor: scheme.onSecondaryContainer,
                           ),
+                          FilledButton.icon(
+                            key: const Key('open-create-todo-button'),
+                            onPressed: _isCreating ? null : _createTodo,
+                            icon: _isCreating
+                                ? const SizedBox(
+                                    height: 18,
+                                    width: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.add_task_rounded),
+                            label: const Text('New task'),
+                          ),
                         ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 18),
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: panel,
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      TextField(
-                        key: const Key('todo-input'),
-                        controller: _titleController,
-                        textInputAction: TextInputAction.next,
-                        enabled: !_isCreating,
-                        decoration: const InputDecoration(
-                          hintText: 'Add a task',
-                          prefixIcon: Icon(Icons.edit_note_rounded),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        key: const Key('todo-description-input'),
-                        controller: _descriptionController,
-                        enabled: !_isCreating,
-                        minLines: 3,
-                        maxLines: 4,
-                        decoration: const InputDecoration(
-                          hintText: 'Add a description',
-                          alignLabelWithHint: true,
-                          prefixIcon: Icon(Icons.notes_rounded),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: FilledButton.icon(
-                          key: const Key('add-todo-button'),
-                          onPressed: _isCreating ? null : _addTodo,
-                          icon: _isCreating
-                              ? const SizedBox(
-                                  height: 18,
-                                  width: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.add_task_rounded),
-                          label: const Text('Add'),
-                        ),
                       ),
                     ],
                   ),
@@ -470,11 +407,13 @@ class _TodoHomePageState extends State<TodoHomePage> {
 
     if (_todos.isEmpty) {
       return _EmptyState(
-        onAddDemoTask: () async {
-          _titleController.text = 'Pick up a sketchbook';
-          _descriptionController.text = 'Take ten minutes after lunch.';
-          await _addTodo();
-        },
+        busy: _isCreating,
+        onAddDemoTask: () => _createTodo(
+          initialDraft: const _TodoDraft(
+            title: 'Pick up a sketchbook',
+            description: 'Take ten minutes after lunch.',
+          ),
+        ),
       );
     }
 
@@ -637,55 +576,68 @@ class _TodoCard extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.onAddDemoTask});
+  const _EmptyState({required this.onAddDemoTask, required this.busy});
 
   final Future<void> Function() onAddDemoTask;
+  final bool busy;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
-    return Center(
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(28),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.check_circle_outline_rounded,
-                size: 48,
-                color: scheme.primary,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Nothing left on the page.',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Add one small task and it will be created in the backend.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: scheme.onSurfaceVariant,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bottomInset = MediaQuery.paddingOf(context).bottom;
+
+        return SingleChildScrollView(
+          padding: EdgeInsets.only(bottom: bottomInset + 16),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Center(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(28),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(28),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.check_circle_outline_rounded,
+                        size: 48,
+                        color: scheme.primary,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Nothing left on the page.',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Add one small task and it will be created in the backend.',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      OutlinedButton.icon(
+                        onPressed: busy ? null : onAddDemoTask,
+                        icon: const Icon(Icons.auto_fix_high_rounded),
+                        label: const Text('Add a starter task'),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 18),
-              OutlinedButton.icon(
-                onPressed: onAddDemoTask,
-                icon: const Icon(Icons.auto_fix_high_rounded),
-                label: const Text('Add a starter task'),
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -737,6 +689,97 @@ class _ErrorState extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _TodoDraftDialog extends StatefulWidget {
+  const _TodoDraftDialog({
+    required this.dialogTitle,
+    required this.submitLabel,
+    required this.submitKey,
+    required this.titleFieldKey,
+    required this.descriptionFieldKey,
+    this.initialDraft,
+  });
+
+  final String dialogTitle;
+  final String submitLabel;
+  final Key submitKey;
+  final Key titleFieldKey;
+  final Key descriptionFieldKey;
+  final _TodoDraft? initialDraft;
+
+  @override
+  State<_TodoDraftDialog> createState() => _TodoDraftDialogState();
+}
+
+class _TodoDraftDialogState extends State<_TodoDraftDialog> {
+  late final TextEditingController _titleController;
+  late final TextEditingController _descriptionController;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(
+      text: widget.initialDraft?.title ?? '',
+    );
+    _descriptionController = TextEditingController(
+      text: widget.initialDraft?.description ?? '',
+    );
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.dialogTitle),
+      scrollable: true,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            key: widget.titleFieldKey,
+            controller: _titleController,
+            autofocus: true,
+            textInputAction: TextInputAction.next,
+            decoration: const InputDecoration(hintText: 'Todo title'),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            key: widget.descriptionFieldKey,
+            controller: _descriptionController,
+            minLines: 3,
+            maxLines: 5,
+            textInputAction: TextInputAction.newline,
+            decoration: const InputDecoration(hintText: 'Description'),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          key: widget.submitKey,
+          onPressed: () {
+            Navigator.of(context).pop(
+              _TodoDraft(
+                title: _titleController.text,
+                description: _descriptionController.text,
+              ),
+            );
+          },
+          child: Text(widget.submitLabel),
+        ),
+      ],
     );
   }
 }
