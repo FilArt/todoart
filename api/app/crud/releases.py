@@ -5,7 +5,7 @@ import sqlite3
 import uuid
 
 from fastapi import HTTPException, UploadFile, status
-from .models import AndroidReleaseRecord
+from app.models import AndroidReleaseRecord
 
 ANDROID_RELEASE_COLUMNS = "version, build_number, notes, filename, published_at"
 

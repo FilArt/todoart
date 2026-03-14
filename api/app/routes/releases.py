@@ -3,9 +3,9 @@ from fastapi import APIRouter, Form, HTTPException, Request, UploadFile, status,
 
 from fastapi.responses import FileResponse
 
-from app import release_crud
 from app.db import Db
 from app.models import AndroidRelease, AndroidReleaseRecord
+from app.crud import releases as crud
 
 
 router = APIRouter()
@@ -54,7 +54,7 @@ async def upload_android_release(
     notes: Annotated[str, Form(max_length=4000)] = "",
 ) -> AndroidRelease:
     _authorize_release_upload(request, release_token)
-    release = release_crud.create_android_release(
+    release = crud.create_android_release(
         db,
         request.app.state.releases_dir,
         version=version.strip(),
@@ -67,13 +67,13 @@ async def upload_android_release(
 
 @router.get("/releases/android/latest", response_model=AndroidRelease)
 def get_latest_android_release(db: Db, request: Request) -> AndroidRelease:
-    release = release_crud.get_latest_android_release(db)
+    release = crud.get_latest_android_release(db)
     return _serialize_android_release(request, release)
 
 
 @router.get("/releases/android/download/{filename}")
 def download_android_release(request: Request, db: Db, filename: str) -> FileResponse:
-    release_path = release_crud.get_android_release_file(
+    release_path = crud.get_android_release_file(
         db,
         request.app.state.releases_dir,
         filename,
