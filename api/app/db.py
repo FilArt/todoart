@@ -1,7 +1,7 @@
 from collections.abc import Generator
 from pathlib import Path
 import sqlite3
-from typing import Annotated
+from typing import Annotated, TypeAlias
 
 from fastapi import Depends, Request
 
@@ -57,4 +57,4 @@ def get_db(request: Request) -> Generator[sqlite3.Connection, None, None]:
         yield db
 
 
-Db = Annotated[sqlite3.Connection, Depends(get_db)]
+Db: TypeAlias = Annotated[sqlite3.Connection, Depends(get_db)]

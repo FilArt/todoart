@@ -31,3 +31,4 @@ build/
 .gradle/
 local.properties
 app/android/key.properties
+*.jks

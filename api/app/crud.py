@@ -1,4 +1,5 @@
 import sqlite3
+from typing import TypeAlias
 
 from fastapi import HTTPException, status
 
@@ -6,7 +7,7 @@ from .models import Todo, TodoCreate, TodoUpdate
 
 TODO_COLUMNS = "id, title, description, done"
 
-Db = sqlite3.Connection
+Db: TypeAlias = sqlite3.Connection
 
 
 def list_todos(db: Db) -> list[Todo]:
