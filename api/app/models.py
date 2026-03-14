@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
@@ -50,3 +52,21 @@ class Todo(BaseModel):
     title: str
     description: str
     done: bool
+
+
+class AndroidReleaseRecord(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    version: str
+    build_number: int
+    notes: str
+    filename: str
+    published_at: datetime
+
+
+class AndroidRelease(BaseModel):
+    version: str
+    build_number: int
+    notes: str
+    download_url: str
+    published_at: datetime

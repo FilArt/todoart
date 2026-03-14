@@ -42,9 +42,26 @@ This section is the source of truth for the todo API contract. Role-specific `AG
 - `GET /todos/{id}`
 - `PATCH /todos/{id}` with `{ "title"?: string, "description"?: string, "done"?: bool }`
 - `DELETE /todos/{id}`
+- `POST /releases/android` as `multipart/form-data` with fields `version` (string), `build_number` (int), optional `notes` (string), and `apk` (file)
+- `GET /releases/android/latest`
+- `GET /releases/android/download/{filename}`
 
 Responses use the todo shape:
 
 ```json
 { "id": 1, "title": "Buy oat milk", "description": "Barista blend only", "done": false }
+```
+
+Android release upload auth uses header `X-Release-Token` and the server env var `TODOART_RELEASE_UPLOAD_TOKEN`.
+
+`GET /releases/android/latest` returns:
+
+```json
+{
+  "version": "1.0.1",
+  "build_number": 2,
+  "notes": "Fixes sync issues",
+  "download_url": "https://example.com/releases/android/download/todoart-1.0.1+2.apk",
+  "published_at": "2026-03-14T12:00:00Z"
+}
 ```

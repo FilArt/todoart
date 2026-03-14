@@ -9,6 +9,15 @@ CREATE TABLE IF NOT EXISTS todos (
     description TEXT NOT NULL DEFAULT '',
     done INTEGER NOT NULL DEFAULT 0 CHECK (done IN (0, 1))
 );
+
+CREATE TABLE IF NOT EXISTS android_releases (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    version TEXT NOT NULL,
+    build_number INTEGER NOT NULL,
+    notes TEXT NOT NULL DEFAULT '',
+    filename TEXT NOT NULL UNIQUE,
+    published_at TEXT NOT NULL
+);
 """
 
 
@@ -17,7 +26,7 @@ def init_db(db_path: str | Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
     with sqlite3.connect(path) as connection:
-        connection.execute(SCHEMA)
+        connection.executescript(SCHEMA)
         _ensure_description_column(connection)
         connection.commit()
 

@@ -27,3 +27,9 @@ devenv test
 ```
 
 If you need a custom API URL, pass `--dart-define=TODO_API_BASE_URL=http://host:8000` to `flutter run`.
+
+## Release
+
+`.github/workflows/android-release.yml` builds a signed Android APK and uploads it to the API release endpoint.
+
+Required GitHub secrets: `TODOART_API_BASE_URL`, `TODOART_RELEASE_UPLOAD_TOKEN`, `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`.

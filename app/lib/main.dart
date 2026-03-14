@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 
 import 'api_config.dart';
+import 'app_release.dart';
+import 'app_update_controller.dart';
+import 'app_update_exception.dart';
 import 'http_todo_repository.dart';
+import 'http_app_release_repository.dart';
 import 'todo_item.dart';
 import 'todo_repository.dart';
 
@@ -10,11 +14,22 @@ void main() {
 }
 
 class MyApp extends StatelessWidget {
-  MyApp({super.key, TodoRepository? repository})
-    : repository =
-          repository ?? HttpTodoRepository(baseUrl: resolveTodoApiBaseUrl());
+  MyApp({
+    super.key,
+    TodoRepository? repository,
+    AppUpdateController? updateController,
+  }) : repository =
+           repository ?? HttpTodoRepository(baseUrl: resolveTodoApiBaseUrl()),
+       updateController =
+           updateController ??
+           DefaultAppUpdateController(
+             releaseRepository: HttpAppReleaseRepository(
+               baseUrl: resolveTodoApiBaseUrl(),
+             ),
+           );
 
   final TodoRepository repository;
+  final AppUpdateController updateController;
 
   @override
   Widget build(BuildContext context) {
@@ -42,15 +57,23 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: TodoHomePage(repository: repository),
+      home: TodoHomePage(
+        repository: repository,
+        updateController: updateController,
+      ),
     );
   }
 }
 
 class TodoHomePage extends StatefulWidget {
-  const TodoHomePage({super.key, required this.repository});
+  const TodoHomePage({
+    super.key,
+    required this.repository,
+    required this.updateController,
+  });
 
   final TodoRepository repository;
+  final AppUpdateController updateController;
 
   @override
   State<TodoHomePage> createState() => _TodoHomePageState();
@@ -60,7 +83,11 @@ class _TodoHomePageState extends State<TodoHomePage> {
   List<TodoItem> _todos = const [];
   bool _isLoading = true;
   bool _isCreating = false;
+  bool _isCheckingUpdates = false;
+  bool _isInstallingUpdate = false;
   String? _loadError;
+  AppVersionInfo? _currentVersion;
+  AppRelease? _availableUpdate;
   final Set<int> _busyIds = <int>{};
 
   int get _openCount => _todos.where((todo) => !todo.done).length;
@@ -70,6 +97,9 @@ class _TodoHomePageState extends State<TodoHomePage> {
   void initState() {
     super.initState();
     _loadTodos();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _autoCheckForUpdates();
+    });
   }
 
   Future<void> _loadTodos() async {
@@ -267,6 +297,163 @@ class _TodoHomePageState extends State<TodoHomePage> {
     });
   }
 
+  Future<void> _autoCheckForUpdates() async {
+    if (!widget.updateController.supportsSelfUpdate) {
+      return;
+    }
+
+    await _checkForUpdates(interactive: false);
+  }
+
+  Future<void> _checkForUpdates({required bool interactive}) async {
+    if (_isCheckingUpdates || _isInstallingUpdate) {
+      return;
+    }
+
+    setState(() {
+      _isCheckingUpdates = true;
+    });
+
+    try {
+      final result = await widget.updateController.checkForUpdates();
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isCheckingUpdates = false;
+        _currentVersion = result.currentVersion;
+        _availableUpdate = result.hasUpdate ? result.latestRelease : null;
+      });
+
+      if (result.latestRelease == null) {
+        if (interactive) {
+          _showMessage('No update has been published yet.');
+        }
+        return;
+      }
+
+      if (!result.hasUpdate) {
+        if (interactive) {
+          _showMessage("You're up to date.");
+        }
+        return;
+      }
+
+      await _promptForUpdate(
+        currentVersion: result.currentVersion,
+        release: result.latestRelease!,
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isCheckingUpdates = false;
+      });
+      _showError(_friendlyError(error));
+    }
+  }
+
+  Future<void> _promptForUpdate({
+    required AppVersionInfo currentVersion,
+    required AppRelease release,
+  }) async {
+    final shouldInstall = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        final theme = Theme.of(context);
+
+        return AlertDialog(
+          title: const Text('Update available'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Current version ${currentVersion.label}',
+                style: theme.textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Latest version ${release.label}',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              if (release.notes.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text(release.notes, style: theme.textTheme.bodyMedium),
+              ],
+              if (!widget.updateController.supportsSelfUpdate) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'Install this Android APK on an Android device to apply the update.',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              key: const Key('dismiss-update-button'),
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(
+                widget.updateController.supportsSelfUpdate ? 'Later' : 'Close',
+              ),
+            ),
+            if (widget.updateController.supportsSelfUpdate)
+              FilledButton(
+                key: const Key('install-update-button'),
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Update'),
+              ),
+          ],
+        );
+      },
+    );
+
+    if (shouldInstall == true) {
+      await _installUpdate(release);
+    }
+  }
+
+  Future<void> _installUpdate(AppRelease release) async {
+    if (_isInstallingUpdate) {
+      return;
+    }
+
+    setState(() {
+      _isInstallingUpdate = true;
+    });
+
+    try {
+      await widget.updateController.installUpdate(release);
+      if (!mounted) {
+        return;
+      }
+
+      _showMessage(
+        'Update downloaded. Follow the Android installer to finish.',
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      _showError(_friendlyError(error));
+    } finally {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isInstallingUpdate = false;
+      });
+    }
+  }
+
   Future<void> _runForTodo(int todoId, Future<void> Function() action) async {
     setState(() {
       _busyIds.add(todoId);
@@ -299,10 +486,17 @@ class _TodoHomePageState extends State<TodoHomePage> {
     if (error is TodoApiException) {
       return error.message;
     }
+    if (error is AppUpdateException) {
+      return error.message;
+    }
     return 'Something went wrong while talking to the API.';
   }
 
   void _showError(String message) {
+    _showMessage(message);
+  }
+
+  void _showMessage(String message) {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
@@ -355,6 +549,12 @@ class _TodoHomePageState extends State<TodoHomePage> {
                         spacing: 10,
                         runSpacing: 10,
                         children: [
+                          if (_currentVersion != null)
+                            _StatChip(
+                              label: 'v${_currentVersion!.label}',
+                              backgroundColor: scheme.tertiaryContainer,
+                              foregroundColor: scheme.onTertiaryContainer,
+                            ),
                           _StatChip(
                             label: '$_openCount open',
                             backgroundColor: scheme.primaryContainer,
@@ -378,6 +578,30 @@ class _TodoHomePageState extends State<TodoHomePage> {
                                   )
                                 : const Icon(Icons.add_task_rounded),
                             label: const Text('New task'),
+                          ),
+                          OutlinedButton.icon(
+                            key: const Key('check-updates-button'),
+                            onPressed: _isCheckingUpdates || _isInstallingUpdate
+                                ? null
+                                : () => _checkForUpdates(interactive: true),
+                            icon: _isCheckingUpdates || _isInstallingUpdate
+                                ? const SizedBox(
+                                    height: 18,
+                                    width: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : Icon(
+                                    _availableUpdate == null
+                                        ? Icons.system_update_alt_rounded
+                                        : Icons.download_rounded,
+                                  ),
+                            label: Text(
+                              _availableUpdate == null
+                                  ? 'Check updates'
+                                  : 'Update ${_availableUpdate!.version}',
+                            ),
                           ),
                         ],
                       ),

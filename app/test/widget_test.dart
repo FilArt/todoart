@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:app/app_release.dart';
+import 'package:app/app_update_controller.dart';
 import 'package:app/http_todo_repository.dart';
 import 'package:app/main.dart';
 import 'package:app/todo_item.dart';
@@ -69,6 +71,43 @@ class FakeTodoRepository implements TodoRepository {
   }
 }
 
+class FakeAppUpdateController implements AppUpdateController {
+  FakeAppUpdateController({
+    List<UpdateCheckResult>? queuedResults,
+    this.supportsSelfUpdate = true,
+  }) : _queuedResults = [...?queuedResults];
+
+  final List<UpdateCheckResult> _queuedResults;
+  @override
+  final bool supportsSelfUpdate;
+
+  int checkCalls = 0;
+  AppRelease? installedRelease;
+
+  @override
+  Future<UpdateCheckResult> checkForUpdates() async {
+    checkCalls += 1;
+
+    if (_queuedResults.isEmpty) {
+      return const UpdateCheckResult(
+        currentVersion: AppVersionInfo(version: '1.0.0', buildNumber: 1),
+        latestRelease: null,
+      );
+    }
+
+    if (_queuedResults.length == 1) {
+      return _queuedResults.first;
+    }
+
+    return _queuedResults.removeAt(0);
+  }
+
+  @override
+  Future<void> installUpdate(AppRelease release) async {
+    installedRelease = release;
+  }
+}
+
 void main() {
   testWidgets('loads todos from the repository and shows summary counts', (
     WidgetTester tester,
@@ -97,8 +136,11 @@ void main() {
         ),
       ],
     );
+    final updateController = FakeAppUpdateController();
 
-    await tester.pumpWidget(MyApp(repository: repository));
+    await tester.pumpWidget(
+      MyApp(repository: repository, updateController: updateController),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('TodoArt'), findsOneWidget);
@@ -132,8 +174,11 @@ void main() {
         ),
       ],
     );
+    final updateController = FakeAppUpdateController();
 
-    await tester.pumpWidget(MyApp(repository: repository));
+    await tester.pumpWidget(
+      MyApp(repository: repository, updateController: updateController),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('open-create-todo-button')));
@@ -176,8 +221,11 @@ void main() {
         ),
       ],
     );
+    final updateController = FakeAppUpdateController();
 
-    await tester.pumpWidget(MyApp(repository: repository));
+    await tester.pumpWidget(
+      MyApp(repository: repository, updateController: updateController),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey<String>('todo-edit-1')));
@@ -200,7 +248,10 @@ void main() {
     await _setSurfaceSize(tester);
 
     await tester.pumpWidget(
-      MyApp(repository: FakeTodoRepository(failOnList: true)),
+      MyApp(
+        repository: FakeTodoRepository(failOnList: true),
+        updateController: FakeAppUpdateController(),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -216,7 +267,12 @@ void main() {
         await tester.binding.setSurfaceSize(null);
       });
 
-      await tester.pumpWidget(MyApp(repository: FakeTodoRepository()));
+      await tester.pumpWidget(
+        MyApp(
+          repository: FakeTodoRepository(),
+          updateController: FakeAppUpdateController(),
+        ),
+      );
       await tester.pumpAndSettle();
 
       final starterTaskButton = find.widgetWithText(
@@ -230,4 +286,90 @@ void main() {
       expect(tester.getRect(starterTaskButton).bottom, lessThanOrEqualTo(640));
     },
   );
+
+  testWidgets('prompts for an update on startup and can start installation', (
+    WidgetTester tester,
+  ) async {
+    await _setSurfaceSize(tester);
+
+    final release = AppRelease(
+      version: '1.1.0',
+      buildNumber: 2,
+      notes: 'Faster release downloads.',
+      downloadUrl: Uri.parse('https://example.com/todoart-android-1.1.0-2.apk'),
+      publishedAt: DateTime.utc(2026, 3, 14, 12),
+    );
+    final updateController = FakeAppUpdateController(
+      queuedResults: [
+        UpdateCheckResult(
+          currentVersion: const AppVersionInfo(
+            version: '1.0.0',
+            buildNumber: 1,
+          ),
+          latestRelease: release,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MyApp(
+        repository: FakeTodoRepository(),
+        updateController: updateController,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Update available'), findsOneWidget);
+    expect(find.text('Latest version 1.1.0+2'), findsOneWidget);
+    expect(find.text('Faster release downloads.'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('install-update-button')));
+    await tester.pumpAndSettle();
+
+    expect(updateController.installedRelease?.version, '1.1.0');
+  });
+
+  testWidgets('check updates button can fetch and show a new release', (
+    WidgetTester tester,
+  ) async {
+    await _setSurfaceSize(tester);
+
+    final release = AppRelease(
+      version: '1.2.0',
+      buildNumber: 3,
+      notes: 'Adds Android self-update support.',
+      downloadUrl: Uri.parse('https://example.com/todoart-android-1.2.0-3.apk'),
+      publishedAt: DateTime.utc(2026, 3, 14, 12),
+    );
+    final updateController = FakeAppUpdateController(
+      queuedResults: [
+        const UpdateCheckResult(
+          currentVersion: AppVersionInfo(version: '1.0.0', buildNumber: 1),
+          latestRelease: null,
+        ),
+        UpdateCheckResult(
+          currentVersion: const AppVersionInfo(
+            version: '1.0.0',
+            buildNumber: 1,
+          ),
+          latestRelease: release,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MyApp(
+        repository: FakeTodoRepository(),
+        updateController: updateController,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('check-updates-button')));
+    await tester.pumpAndSettle();
+
+    expect(updateController.checkCalls, 2);
+    expect(find.text('Update available'), findsOneWidget);
+    expect(find.text('Latest version 1.2.0+3'), findsOneWidget);
+  });
 }
