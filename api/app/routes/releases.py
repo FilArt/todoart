@@ -44,7 +44,7 @@ def _serialize_android_release(
     response_model=AndroidRelease,
     status_code=status.HTTP_201_CREATED,
 )
-async def upload_android_release(
+async def upload(
     db: Db,
     request: Request,
     build_number: Annotated[int, Form(ge=1)],
@@ -66,13 +66,13 @@ async def upload_android_release(
 
 
 @router.get("/releases/android/latest", response_model=AndroidRelease)
-def get_latest_android_release(db: Db, request: Request) -> AndroidRelease:
+def get_latest(db: Db, request: Request) -> AndroidRelease:
     release = crud.get_latest_android_release(db)
     return _serialize_android_release(request, release)
 
 
 @router.get("/releases/android/download/{filename}")
-def download_android_release(request: Request, db: Db, filename: str) -> FileResponse:
+def download(request: Request, db: Db, filename: str) -> FileResponse:
     release_path = crud.get_android_release_file(
         db,
         request.app.state.releases_dir,
