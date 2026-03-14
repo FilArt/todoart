@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:open_file/open_file.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -57,6 +58,7 @@ class DefaultAppUpdateController implements AppUpdateController {
   }) : _releaseRepository = releaseRepository,
        _client = client ?? http.Client();
 
+  static const MethodChannel _platformChannel = MethodChannel('todoart/update');
   final AppReleaseRepository _releaseRepository;
   final http.Client _client;
 
@@ -89,6 +91,13 @@ class DefaultAppUpdateController implements AppUpdateController {
       );
     }
 
+    if (!await _canRequestPackageInstalls()) {
+      await _openUnknownAppSourcesSettings();
+      throw const AppUpdateException(
+        'Allow "Install unknown apps" for TodoArt in Android settings, then try the update again.',
+      );
+    }
+
     final response = await _client.get(release.downloadUrl);
     if (response.statusCode != 200) {
       throw const AppUpdateException('Failed to download the update APK.');
@@ -103,11 +112,41 @@ class DefaultAppUpdateController implements AppUpdateController {
       type: 'application/vnd.android.package-archive',
     );
     if (result.type != ResultType.done) {
+      final resultMessage = result.message.toLowerCase();
+      if (resultMessage.contains('permission denied') &&
+          resultMessage.contains('installed packages')) {
+        await _openUnknownAppSourcesSettings();
+        throw const AppUpdateException(
+          'Android blocked the installer. Allow "Install unknown apps" for TodoArt, then try again.',
+        );
+      }
+
       throw AppUpdateException(
         result.message.isEmpty
             ? 'Failed to open the update installer.'
             : result.message,
       );
+    }
+  }
+
+  Future<bool> _canRequestPackageInstalls() async {
+    try {
+      final allowed = await _platformChannel.invokeMethod<bool>(
+        'canRequestPackageInstalls',
+      );
+      return allowed ?? false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
+  Future<void> _openUnknownAppSourcesSettings() async {
+    try {
+      await _platformChannel.invokeMethod<void>(
+        'openUnknownAppSourcesSettings',
+      );
+    } on PlatformException {
+      // Keep the user-facing error actionable even if opening settings fails.
     }
   }
 }
