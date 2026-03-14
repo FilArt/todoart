@@ -116,4 +116,6 @@ in {
     uv sync
     uv run pytest
   '';
+
+  process.manager.implementation = "process-compose";
 }
