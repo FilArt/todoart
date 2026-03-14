@@ -6,7 +6,7 @@ from fastapi import FastAPI
 
 from .db import init_db
 
-from .routes import releases, todos
+from .routes import releases, todos, base
 
 DEFAULT_DB_PATH = Path(__file__).resolve().parent.parent / "todoart.db"
 DEFAULT_RELEASES_DIR = Path(__file__).resolve().parent.parent / "releases"
@@ -33,19 +33,9 @@ def create_app(
         yield
 
     app = FastAPI(title="TodoArt API", lifespan=lifespan)
+    app.include_router(base.router)
     app.include_router(releases.router)
     app.include_router(todos.router)
-
-    @app.get("/")
-    def read_root() -> dict[str, str]:  # pyright: ignore[reportUnusedFunction]
-        return {
-            "message": "TodoArt API is running",
-            "status": "ok",
-        }
-
-    @app.get("/health")
-    def healthcheck() -> dict[str, str]:  # pyright: ignore[reportUnusedFunction]
-        return {"status": "ok"}
 
     return app
 
