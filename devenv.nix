@@ -38,7 +38,7 @@ in {
     extras = [];
     extraLicenses = ["android-sdk-license"];
     googleAPIs.enable = false;
-    platforms.version = ["36"];
+    platforms.version = ["34" "36"];
 
     # Keep the base shell lighter; re-enable these if you want a Nix-managed emulator.
     emulator.enable = false;

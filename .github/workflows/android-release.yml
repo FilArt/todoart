@@ -8,6 +8,9 @@ on:
         required: false
         type: string
   push:
+    paths:
+      - "app/**"
+      - ".github/workflows/android-release.yml"
     tags:
       - "v*"
 
@@ -85,6 +88,7 @@ jobs:
           path: app/build/app/outputs/flutter-apk/app-release.apk
 
       - name: Upload APK to TodoArt API
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
         run: |
           api_base="${TODOART_API_BASE_URL%/}"
           curl --fail --show-error --silent \
