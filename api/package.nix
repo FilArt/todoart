@@ -15,6 +15,7 @@ python3Packages.buildPythonApplication rec {
 
   dependencies = with python3Packages; [
     fastapi
+    python-multipart
     uvicorn
   ];
 

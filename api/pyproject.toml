@@ -5,7 +5,7 @@ description = "FastAPI backend for TodoArt"
 requires-python = ">=3.12"
 dependencies = [
   "fastapi[standard]>=0.115,<1.0",
-  "python-multipart>=0.0.22",
+  "python-multipart>=0.0.21",
 ]
 
 [project.scripts]
