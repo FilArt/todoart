@@ -3,7 +3,7 @@ from typing import TypeAlias
 
 from fastapi import HTTPException, status
 
-from .models import Todo, TodoCreate, TodoUpdate
+from app.models import Todo, TodoCreate, TodoUpdate
 
 TODO_COLUMNS = "id, title, description, done"
 
