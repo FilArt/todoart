@@ -111,6 +111,7 @@ def test_existing_database_is_migrated_with_description_column(
     tmp_path: Path,
 ) -> None:
     db_path = tmp_path / "todoart-legacy.db"
+    releases_dir = tmp_path / "releases"
     with sqlite3.connect(db_path) as connection:
         connection.execute(
             """
@@ -127,7 +128,7 @@ def test_existing_database_is_migrated_with_description_column(
         )
         connection.commit()
 
-    test_app = create_app(db_path=db_path)
+    test_app = create_app(db_path=db_path, releases_dir=releases_dir)
 
     with TestClient(test_app) as client:
         listed = client.get("/todos")
