@@ -10,6 +10,7 @@ in {
     APP_DIR = appDir;
     API_DIR = apiDir;
     JAVA_HOME = pkgs.jdk17.home;
+    TODOART_RELEASE_UPLOAD_TOKEN = "devenv-release-token";
   };
 
   packages = with pkgs; [

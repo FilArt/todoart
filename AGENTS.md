@@ -52,7 +52,7 @@ Responses use the todo shape:
 { "id": 1, "title": "Buy oat milk", "description": "Barista blend only", "done": false }
 ```
 
-Android release upload auth uses header `X-Release-Token` and the server env var `TODOART_RELEASE_UPLOAD_TOKEN`.
+Android release upload auth uses header `X-Release-Token` and the required server env var `TODOART_RELEASE_UPLOAD_TOKEN`.
 
 `GET /releases/android/latest` returns:
 

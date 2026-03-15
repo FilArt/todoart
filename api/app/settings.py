@@ -5,10 +5,13 @@ from pydantic_settings import BaseSettings
 
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parent.parent
+
 
 class DefaultSettings(BaseSettings):
-    todoart_db_path: Path = Path(__file__).resolve().parent.parent / "todoart.db"
-    todoart_releases_dir: Path = Path(__file__).resolve().parent.parent / "releases"
+    todoart_db_path: Path = ROOT / "todoart.db"
+    todoart_releases_dir: Path = ROOT / "releases"
+    todoart_release_upload_token: str
 
     @property
     def db_path(self) -> Path:
@@ -18,9 +21,13 @@ class DefaultSettings(BaseSettings):
     def releases_dir(self) -> Path:
         return self.todoart_releases_dir
 
+    @property
+    def release_upload_token(self) -> str:
+        return self.todoart_release_upload_token
+
 
 @lru_cache(maxsize=1)
-def get_settings():
+def get_settings() -> DefaultSettings:
     return DefaultSettings()
 
 

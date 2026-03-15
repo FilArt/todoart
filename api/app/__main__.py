@@ -1,6 +1,5 @@
 from collections.abc import Sequence
 import argparse
-import os
 
 import uvicorn
 
@@ -12,19 +11,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
-    parser.add_argument(
-        "--db-path",
-        default=None,
-        help="Override TODOART_DB_PATH for the process.",
-    )
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-
-    if args.db_path is not None:
-        os.environ["TODOART_DB_PATH"] = args.db_path
 
     uvicorn.run(
         "app.main:app",

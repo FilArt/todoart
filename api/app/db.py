@@ -5,6 +5,8 @@ from typing import Annotated, TypeAlias
 
 from fastapi import Depends, Request
 
+from app.settings import Settings
+
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS todos (
@@ -52,8 +54,8 @@ def connect(db_path: str | Path) -> sqlite3.Connection:
     return connection
 
 
-def get_db(request: Request) -> Generator[sqlite3.Connection, None, None]:
-    with connect(request.app.state.db_path) as db:  # pyright: ignore[reportAny]
+def get_db(settings: Settings) -> Generator[sqlite3.Connection, None, None]:
+    with connect(settings.db_path) as db:
         yield db
 
 
