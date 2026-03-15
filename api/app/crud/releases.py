@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 import shutil
 import sqlite3
+from typing import TypeAlias
 import uuid
 
 from fastapi import HTTPException, UploadFile, status
@@ -9,7 +10,8 @@ from app.models import AndroidReleaseRecord
 
 ANDROID_RELEASE_COLUMNS = "version, build_number, notes, filename, published_at"
 
-Db = sqlite3.Connection
+
+Db: TypeAlias = sqlite3.Connection
 
 
 def create_android_release(
