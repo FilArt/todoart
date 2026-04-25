@@ -17,6 +17,7 @@ python3Packages.buildPythonApplication rec {
     fastapi
     python-multipart
     uvicorn
+    pydantic-settings
   ];
 
   nativeCheckInputs = with python3Packages; [
